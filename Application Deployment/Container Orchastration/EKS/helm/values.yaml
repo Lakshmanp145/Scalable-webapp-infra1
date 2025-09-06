@@ -1,0 +1,8 @@
+deployment:
+  imageVersion: IMAGE_VERSION
+  imageURL: 503561459301.dkr.ecr.us-east-1.amazonaws.com/expense/dev/frontend
+tgb:
+  arn: arn:aws:elasticloadbalancing:us-east-1:503561459301:targetgroup/expense-prod/27f3572355a8eb69
+hpa:  
+  cpuUtilization: 30
+namespace: webapp
