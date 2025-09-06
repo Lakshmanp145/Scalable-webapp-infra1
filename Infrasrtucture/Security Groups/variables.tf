@@ -1,15 +1,16 @@
 variable "project" {
-    default = "expense"
+    default = "web_app"
 }
 
 variable "environment" {
-    default = "dev"
+    default = "prod"
 }
+
 
 variable "common_tags" {
     default = {
-        project = "expense"
-        environment = "dev"
+        project = "web_app"
+        environment = "prod"
         terraform = "true"
     }
 }
@@ -18,5 +19,5 @@ variable "common_tags" {
 
 
 variable "sg_name" {
-    default = "mysql"
+    default = "application_alb"
 }

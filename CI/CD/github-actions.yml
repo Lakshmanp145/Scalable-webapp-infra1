@@ -60,7 +60,7 @@ jobs:
         uses: aws-actions/configure-kubectl@v3
         with:
           cluster-name: your-eks-cluster
-          region: ${{ env.AWS_REGION }}
+          region: ${{ secrets.AWS_REGION }}
 
       - name: Update staging deployment
         run: |

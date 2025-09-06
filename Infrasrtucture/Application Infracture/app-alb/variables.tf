@@ -1,21 +1,21 @@
 variable "project" {
-    default = "expense"
+    default = "web_app"
 }
 
 variable "environment" {
-    default = "dev"
+    default = "prod"
 }
 
 variable "common_tags" {
     default = {
-        project = "expense"
-        environment = "dev"
+        project = "web_app"
+        environment = "prod"
         terraform = "true"
     }
 }
 
 variable "zone_id" {
-    default = "Z0297339GVFSCF3IFANY"
+    default = "Z06311461V7HCH4LJMH8W"
 }
 
 variable "domain_name" {

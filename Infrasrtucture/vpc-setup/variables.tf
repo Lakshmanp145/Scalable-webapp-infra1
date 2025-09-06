@@ -4,17 +4,17 @@ variable "cidr_block" {
 }
 
 variable "project" {
-    default = "expense"
+    default = "web_app"
 
 }
 
 variable "environment" {
-    default = "dev"
+    default = "prod"
 }
 
 variable "common_tags" {
     default = {
-        project = "expense"
+        project = "web_app"
         environment = "dev"
         terraform = "true"
     }

@@ -1,25 +1,23 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: app2
-  namespace: webapp   # make sure to add namespace if you're deploying with one
+  name: app1
   annotations:
-    kubernetes.io/ingress.class: alb
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 443}]'
     alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:503561459301:certificate/8a1d5676-c3db-4bb9-ba6a-98580c36fd0b
     alb.ingress.kubernetes.io/group.name: joindevops
 spec:
   ingressClassName: alb
   rules:
-  - host: app2.lakshman.site
+  - host: "app1.lakshman.site"
     http:
       paths:
-      - path: /
-        pathType: Prefix
+      - pathType: Prefix
+        path: "/"
         backend:
           service:
-            name: app2
+            name: app1
             port:
               number: 80

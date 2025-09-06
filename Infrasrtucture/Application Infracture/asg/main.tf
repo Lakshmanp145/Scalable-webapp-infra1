@@ -1,8 +1,9 @@
 resource "aws_instance" "backend" {
   ami                    = local.ami_id
   instance_type          = "t3.micro"
-  vpc_security_group_ids = [local.backend_sg_id]
+  vpc_security_group_ids = [local.ec2_sg_id]
   subnet_id = local.private_subnet_id
+  #user_data=file("bootstrap.sh")
   tags = merge(
     var.common_tags,
     var.backend_tags,
@@ -17,29 +18,29 @@ resource "null_resource" "backend" {
   triggers = {
     instance_id = aws_instance.backend.id
   }
-
-  # Bootstrap script can run on any instance of the cluster
-  # So we just choose the first in this case
-   connection {
-    type     = "ssh"
-    user     = "ec2-user"
-    password = "DevOps321"
-    host     = aws_instance.backend.private_ip
-  }
-
-   provisioner "file" {
-        source      = "backend.sh"
-        destination = "/tmp/backend.sh"
-   }
-
-   provisioner "remote-exec" {
-    # Bootstrap script called with private_ip of each node in the cluster
-    inline = [
-      "chmod +x /tmp/backend.sh",
-      "sudo sh /tmp/backend.sh ${var.environment}"
-    ]
-   }
 }
+#   # Bootstrap script can run on any instance of the cluster
+#   # So we just choose the first in this case
+#    connection {
+#     type     = "ssh"
+#     user     = "ec2-user"
+#     password = "DevOps321"
+#     host     = aws_instance.backend.private_ip
+#   }
+
+#    provisioner "file" {
+#         source      = "bootstrap.sh"
+#         destination = "/tmp/bootstrap.sh"
+#    }
+
+#    provisioner "remote-exec" {
+#     # Bootstrap script called with private_ip of each node in the cluster
+#     inline = [
+#       "chmod +x /tmp/backend.sh",
+#       "sudo sh /tmp/backend.sh ${var.environment}"
+#     ]
+#    }
+# }
 
 
 #Stop the server
@@ -95,7 +96,7 @@ resource "aws_launch_template" "backend" {
   image_id = aws_ami_from_instance.backend.id
   instance_initiated_shutdown_behavior = "terminate"
   instance_type = "t3.micro"
-  vpc_security_group_ids = [local.backend_sg_id]
+  vpc_security_group_ids = [local.ec2_sg_id]
   update_default_version = true
   tag_specifications {
     resource_type = "instance"
@@ -140,7 +141,7 @@ resource "aws_autoscaling_group" "backend" {
 
   tag {
     key                 = "Project"
-    value               = "expense"
+    value               = "web_app"
     propagate_at_launch = false
   }
 
@@ -176,7 +177,7 @@ resource "aws_lb_listener_rule" "backend" {
 
   condition {
     host_header {
-      values = ["backend.app-${var.environment}.${var.domain_name}"]
+      values = ["web_app-${var.environment}.${var.domain_name}"]
     }
   }
 }

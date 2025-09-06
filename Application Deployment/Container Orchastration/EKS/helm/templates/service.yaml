@@ -1,14 +1,14 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}
-  namespace: {{ .Values.namespace }}
-  labels:
-    app: {{ .Chart.Name }}
+  name: shipping
+  namespace: roboshop
 spec:
-  type: {{ .Values.service.type }}
   selector:
-    app: {{ .Chart.Name }}
+    app: shipping
+    project: roboshop
+    tier: app
   ports:
-    - port: {{ .Values.service.port }}
-      targetPort: {{ .Values.service.targetPort }}
+  - protocol: TCP
+    port: 8080 #service-port
+    targetPort: 8080 #container-port

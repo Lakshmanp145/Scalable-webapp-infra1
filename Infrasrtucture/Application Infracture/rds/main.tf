@@ -4,37 +4,39 @@ module "db" {
   identifier = local.resource_name
 
   engine            = "postgres"
-  engine_version    = "16.3"   # latest supported stable PG
+  engine_version    = "15"                # Latest supported Postgres
   instance_class    = "db.t4g.micro"
   allocated_storage = 20
 
-  db_name  = "transactions"
-  username = "postgres"
-  port     = "5432"
-  password = "ExpenseApp1"
-  manage_master_user_password = false
-  skip_final_snapshot = true
+  db_name  = local.db_name            
+  username = local.db_username
+  password = local.db_password                 
+  port     = 5432
 
-  vpc_security_group_ids = [local.postgres_sg_id]
+  manage_master_user_password = false
+  skip_final_snapshot         = true
+  deletion_protection         = false
+
+  vpc_security_group_ids = [data.aws_ssm_parameter.rds_sg_id.value]
 
   # DB subnet group
   create_db_subnet_group = false
   db_subnet_group_name   = local.database_subnet_group_name
 
   # DB parameter group
-  family = "postgres16"
+  family = "postgres15"
 
-  # Database Deletion Protection
-  deletion_protection = false
+  # Option group (only for engines like MySQL/Oracle, skip for Postgres)
+  major_engine_version = "15"
 
   parameters = [
     {
-      name  = "client_encoding"
-      value = "UTF8"
+      name  = "log_statement"
+      value = "all"
     },
     {
-      name  = "rds.force_ssl"
-      value = "1"
+      name  = "log_min_duration_statement"
+      value = "5000" # log queries >5s
     }
   ]
 
@@ -46,10 +48,11 @@ module "db" {
   )
 }
 
-resource "aws_route53_record" "postgres" {
+# Optional: DNS Record for internal app usage
+resource "aws_route53_record" "db" {
   zone_id = var.zone_id
   name    = "postgres-${var.environment}.${var.domain_name}"
   type    = "CNAME"
-  ttl     = 1
+  ttl     = 60
   records = [module.db.db_instance_address]
 }

@@ -1,4 +1,4 @@
-variable "project" {
+variable "project_name" {
     default = "web_app"
 }
 
@@ -14,15 +14,14 @@ variable "common_tags" {
     }
 }
 
+variable "backend_tags" {
+    default = {}
+}
+
 variable "domain_name" {
     default = "lakshman.site"
 }
 
-
 variable "zone_id" {
     default = "Z06311461V7HCH4LJMH8W"
-}
-
-variable "db_engine" {
-    default = "postgre"
 }

@@ -26,7 +26,7 @@ module "ec2_sg" {
     description = "Created for backend Alb in expense dev"
     common_tags = var.common_tags
     vpc_id = local.vpc_id
-    sg_name = "app-alb"
+    sg_name = "ec2_instance"
 }
 
 
@@ -37,7 +37,7 @@ module "rds_sg" {
     description = "Created for eks-control-plane"
     common_tags = var.common_tags
     vpc_id = local.vpc_id
-    sg_name  = "eks-control-plane"
+    sg_name  = "rds_database"
 }
 
 # ALB: Allow HTTPS from internet
@@ -96,6 +96,6 @@ resource "aws_security_group_rule" "bastion_ssh" {
   from_port         = 22
   to_port           = 22
   protocol          = "tcp"
-  cidr_blocks       = [var.my_ip]   
+  cidr_blocks       = ["0.0.0.0/0"] 
   security_group_id = module.bastion_sg.sg_id
 }

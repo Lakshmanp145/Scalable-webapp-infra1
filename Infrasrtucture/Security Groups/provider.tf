@@ -8,7 +8,7 @@ terraform {
 
   backend "s3" {
     bucket = "laxman-tf-remote-state-prod"
-    key = "expense-dev-eks-sg"
+    key = "web-_app-prod-sg"
     region = "us-east-1"
     dynamodb_table = "laxman-tf-remote-state-prod"
 
