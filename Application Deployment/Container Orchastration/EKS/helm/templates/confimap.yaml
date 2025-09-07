@@ -1,8 +1,9 @@
+# k8s/configmap.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: shipping
-  namespace: roboshop
+  name: webapp-config
 data:
-  CART_ENDPOINT: "cart:8080"
-  DB_HOST: roboshop-dev.czn6yzxlcsiv.us-east-1.rds.amazonaws.com
+  DB_HOST: mydb.xxxxxx.rds.amazonaws.com
+  DB_NAME: mydb
+  DB_USER: dbuser

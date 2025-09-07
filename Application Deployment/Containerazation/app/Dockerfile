@@ -1,25 +1,21 @@
-# Stage 1: builder
-FROM python:3.11-slim AS builder
+# Stage 1: Build dependencies
+FROM python:3.11-slim as builder
+
 WORKDIR /app
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+
 COPY requirements.txt .
-RUN apt-get update \
-&& apt-get install -y build-essential libpq-dev --no-install-recommends \
-&& pip install --upgrade pip \
-&& pip install --prefix=/install -r requirements.txt \
-&& rm -rf /var/lib/apt/lists/*
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.txt
 
-
-# Stage 2: runtime
+# Stage 2: Final lightweight image
 FROM python:3.11-slim
+
 WORKDIR /app
-ENV PATH=/install/bin:$PATH
-COPY --from=builder /install /install
-COPY src/ /app
-RUN useradd --no-create-home --shell /bin/false appuser \
-&& chown -R appuser:appuser /app \
-&& chmod -R 755 /app
-USER appuser
+
+COPY --from=builder /app/wheels /wheels
+RUN pip install --no-cache /wheels/*
+
+COPY app.py .
+
 EXPOSE 5000
+
 CMD ["python", "app.py"]

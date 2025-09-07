@@ -34,9 +34,26 @@ resource "aws_lb_listener" "https" {
   } 
 }
 
+resource "aws_lb_listener" "http" {
+  load_balancer_arn = module.alb.arn
+  port              = "80"
+  protocol          = "HTTP"
+  # ssl_policy        = "ELBSecurityPolicy-2016-08"
+  # certificate_arn   = local.aws_alb_certificate_arn
+  default_action {
+    type             = "fixed-response"
+    
+    fixed_response {
+      content_type = "text/html"
+      message_body = "<h1>Hello, Iam from frontend ALB with http</h1>"
+      status_code  = "200"
+    }
+  } 
+}
+
 resource "aws_route53_record" "web_alb" {
   zone_id = var.zone_id
-  name    = "web_app-${var.environment}.${var.domain_name}"
+  name    = "*.web-${var.environment}.${var.domain_name}"
   type    = "A"
 
 #Application ALB details

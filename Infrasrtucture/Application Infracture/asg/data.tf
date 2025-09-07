@@ -33,3 +33,8 @@ data "aws_ssm_parameter" "vpc_id" {
 data "aws_ssm_parameter" "app_alb_listener_arn" {
     name = "/${var.project}/${var.environment}/app_alb_listener_arn"
 }
+
+
+data "aws_ssm_parameter" "app_alb_listener_arn_http" {
+    name = "/${var.project}/${var.environment}/app_alb_listener_arn_http"
+}

@@ -3,7 +3,7 @@ resource "aws_instance" "backend" {
   instance_type          = "t3.micro"
   vpc_security_group_ids = [local.ec2_sg_id]
   subnet_id = local.private_subnet_id
-  #user_data=file("bootstrap.sh")
+  user_data=file("app_userdata.sh")
   tags = merge(
     var.common_tags,
     var.backend_tags,
@@ -13,12 +13,12 @@ resource "aws_instance" "backend" {
   )
 }
 
-resource "null_resource" "backend" {
-  # Changes to any instance of the cluster requires re-provisioning
-  triggers = {
-    instance_id = aws_instance.backend.id
-  }
-}
+# resource "null_resource" "backend" {
+#   # Changes to any instance of the cluster requires re-provisioning
+#   triggers = {
+#     instance_id = aws_instance.backend.id
+#   }
+# }
 #   # Bootstrap script can run on any instance of the cluster
 #   # So we just choose the first in this case
 #    connection {
@@ -74,7 +74,7 @@ resource "null_resource" "backend_delete" {
 
 resource "aws_lb_target_group" "backend" {
   name     = local.resource_name
-  port     = 8080
+  port     = 80
   protocol = "HTTP"
   vpc_id   = local.vpc_id
   deregistration_delay = 60
@@ -84,8 +84,8 @@ resource "aws_lb_target_group" "backend" {
     unhealthy_threshold =2
     timeout = 5
     protocol = "HTTP"
-    port = 8080
-    path = "/health"
+    port = 80
+    path = "/"
     matcher = "200-299"
     interval = 10
   }
@@ -168,6 +168,22 @@ resource "aws_autoscaling_policy" "backend" {
 
 resource "aws_lb_listener_rule" "backend" {
   listener_arn = local.app_alb_listener_arn
+  priority     = 10
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.backend.arn
+  }
+
+  condition {
+    host_header {
+      values = ["web_app-${var.environment}.${var.domain_name}"]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "backend_http" {
+  listener_arn = local.app_alb_listener_arn_http
   priority     = 10
 
   action {
