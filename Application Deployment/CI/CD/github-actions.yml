@@ -1,0 +1,109 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPO: flask-rds-app
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      registry: ${{ steps.login.outputs.registry }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup QEMU (for multi-arch) & Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: login
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build and push Docker image
+        run: |
+          docker build -t $ECR_REPO:${IMAGE_TAG} ./app
+          docker tag $ECR_REPO:${IMAGE_TAG} ${{ steps.login.outputs.registry }}/$ECR_REPO:${IMAGE_TAG}
+          docker push ${{ steps.login.outputs.registry }}/$ECR_REPO:${IMAGE_TAG}
+
+      - name: Trivy scan
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh
+          trivy image --exit-code 1 --severity HIGH,CRITICAL ${{ steps.login.outputs.registry }}/$ECR_REPO:${IMAGE_TAG} || true
+
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup kubectl
+        uses: aws-actions/configure-kubectl@v3
+        with:
+          cluster-name: ${{ secrets.EKS_CLUSTER_NAME }}
+          region: ${{ env.AWS_REGION }}
+
+      - name: Helm upgrade (staging)
+        run: |
+          helm repo add stable https://charts.helm.sh/stable || true
+          helm upgrade --install flask-rds-app ./helm/flask-rds-app \
+            --namespace staging --create-namespace \
+            --set image.repository=${{ steps.login.outputs.registry }}/$ECR_REPO \
+            --set image.tag=${IMAGE_TAG} \
+            --set env.DB_PASS=${{ secrets.DB_PASS_STAGING }}
+
+      - name: Run integration tests
+        run: ./ci-cd/scripts/test.sh staging
+
+  production-approval:
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    steps:
+      - name: Wait for approval
+        uses: chrnorm/deploy-approval-action@v1
+        with:
+          timeout: 86400
+          reviewers: ${{ secrets.PROD_REVIEWERS }}
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: production-approval
+    steps:
+      - uses: actions/checkout@v3
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Setup kubectl
+        uses: aws-actions/configure-kubectl@v3
+        with:
+          cluster-name: ${{ secrets.EKS_CLUSTER_NAME }}
+          region: ${{ env.AWS_REGION }}
+      - name: Helm upgrade (prod)
+        run: |
+          helm upgrade --install flask-rds-app ./helm/flask-rds-app \
+            --namespace production --create-namespace \
+            --set image.repository=${{ steps.login.outputs.registry }}/$ECR_REPO \
+            --set image.tag=${IMAGE_TAG} \
+            --set env.DB_PASS=${{ secrets.DB_PASS_PROD }}

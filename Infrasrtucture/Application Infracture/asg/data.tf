@@ -1,10 +1,10 @@
-data "aws_ami" "joindevops" {
+data "aws_ami" "python-flask" {
   most_recent = true
-  owners      = ["973714476881"]
+  owners      = ["503561459301"]
 
   filter {
     name   = "name"
-    values = ["RHEL-9-DevOps-Practice"]
+    values = ["python-flask"]
   }
 
   filter {
@@ -35,6 +35,22 @@ data "aws_ssm_parameter" "app_alb_listener_arn" {
 }
 
 
-data "aws_ssm_parameter" "app_alb_listener_arn_http" {
-    name = "/${var.project}/${var.environment}/app_alb_listener_arn_http"
+# data "aws_ssm_parameter" "app_alb_listener_arn_http" {
+#     name = "/${var.project}/${var.environment}/app_alb_listener_arn_http"
+# }
+
+data "aws_ssm_parameter" "db_password" {
+    name = "/${var.db_engine}/${var.environment}/password"
+}
+
+data "aws_ssm_parameter" "db_username" {
+    name = "/${var.db_engine}/${var.environment}/username"
+}
+
+data "aws_ssm_parameter" "db_name" {
+    name = "/${var.project}/${var.environment}/db_name"
+}
+
+data "aws_ssm_parameter" "db-endpoint" {
+    name = "/${var.project}/${var.environment}/db-endpoint"
 }

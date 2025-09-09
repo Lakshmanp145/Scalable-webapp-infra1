@@ -25,3 +25,7 @@ variable "domain_name" {
 variable "zone_id" {
     default = "Z06311461V7HCH4LJMH8W"
 }
+
+variable "db_engine" {
+    default = "postgre"
+}

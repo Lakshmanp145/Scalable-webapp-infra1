@@ -1,125 +1,74 @@
-resource "aws_instance" "backend" {
-  ami                    = local.ami_id
-  instance_type          = "t3.micro"
-  vpc_security_group_ids = [local.ec2_sg_id]
-  subnet_id = local.private_subnet_id
-  user_data=file("app_userdata.sh")
-  tags = merge(
-    var.common_tags,
-    var.backend_tags,
-    {
-        Name = local.resource_name
-    }
-  )
-}
-
-# resource "null_resource" "backend" {
-#   # Changes to any instance of the cluster requires re-provisioning
-#   triggers = {
-#     instance_id = aws_instance.backend.id
-#   }
-# }
-#   # Bootstrap script can run on any instance of the cluster
-#   # So we just choose the first in this case
-#    connection {
-#     type     = "ssh"
-#     user     = "ec2-user"
-#     password = "DevOps321"
-#     host     = aws_instance.backend.private_ip
-#   }
-
-#    provisioner "file" {
-#         source      = "bootstrap.sh"
-#         destination = "/tmp/bootstrap.sh"
-#    }
-
-#    provisioner "remote-exec" {
-#     # Bootstrap script called with private_ip of each node in the cluster
-#     inline = [
-#       "chmod +x /tmp/backend.sh",
-#       "sudo sh /tmp/backend.sh ${var.environment}"
-#     ]
-#    }
-# }
-
-
-#Stop the server
-resource "aws_ec2_instance_state" "backend" {
-  instance_id = aws_instance.backend.id
-  state       = "stopped"
-  depends_on = [null_resource.backend]
-}
-
-
-#Take the AMI
-resource "aws_ami_from_instance" "backend" {
-  name               = local.resource_name
-  source_instance_id = aws_instance.backend.id
-  depends_on = [aws_ec2_instance_state.backend]
-}
-
-#Delete instance 
-resource "null_resource" "backend_delete" {
-
-  triggers = {
-    instance_id = aws_instance.backend.id
-  }
-  
-  provisioner "local-exec" {
-    command = "aws ec2 terminate-instances --instance-ids ${aws_instance.backend.id}"
-    #comand = terraform destroy -target aws_instance.aws_instance.backend.id
-  }
-  depends_on = [aws_ami_from_instance.backend]
-}
-
+# Target group for Flask app
 resource "aws_lb_target_group" "backend" {
-  name     = local.resource_name
-  port     = 80
+  name     = "${local.resource_name}-tg"
+  port     = 5000
   protocol = "HTTP"
   vpc_id   = local.vpc_id
   deregistration_delay = 60
 
   health_check {
-    healthy_threshold = 2
-    unhealthy_threshold =2
-    timeout = 5
-    protocol = "HTTP"
-    port = 80
-    path = "/"
-    matcher = "200-299"
-    interval = 10
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    timeout             = 5
+    protocol            = "HTTP"
+    port                = "5000"
+    path                = "/"
+    matcher             = "200-299"
+    interval            = 30
   }
 }
 
+# Launch template
+# Launch template
 resource "aws_launch_template" "backend" {
-  name = local.resource_name
-  image_id = aws_ami_from_instance.backend.id
-  instance_initiated_shutdown_behavior = "terminate"
+  name          = "${local.resource_name}-lt"
+  image_id      = local.ami_id
   instance_type = "t3.micro"
   vpc_security_group_ids = [local.ec2_sg_id]
   update_default_version = true
+
+  instance_initiated_shutdown_behavior = "terminate"
+
+  # 🔹 Inject environment variables dynamically
+  user_data = base64encode(<<-EOT
+    #!/bin/bash
+    cat > /etc/flaskapp.env <<EOF
+    DB_HOST=${data.aws_ssm_parameter.db-endpoint.value}
+    DB_NAME=${data.aws_ssm_parameter.db_name.value}
+    DB_USER=${data.aws_ssm_parameter.db_username.value}
+    DB_PASS=${data.aws_ssm_parameter.db_password.value}
+    EOF
+
+    systemctl daemon-reload
+    systemctl restart flaskapp
+  EOT
+  )
+
   tag_specifications {
     resource_type = "instance"
-
     tags = {
-      Name = local.resource_name
+      Name = "${local.resource_name}-ec2"
     }
   }
 }
 
+
+# Autoscaling group
 resource "aws_autoscaling_group" "backend" {
-  name                      = local.resource_name
-  max_size                  = 10
-  min_size                  = 2
+  name                      = "${local.resource_name}-asg"
+  max_size                  = 4
+  min_size                  = 1
+  desired_capacity          = 2
   health_check_grace_period = 180
   health_check_type         = "ELB"
-  desired_capacity          = 2
+
   target_group_arns = [aws_lb_target_group.backend.arn]
+  vpc_zone_identifier = local.private_subnet_ids
+
   launch_template {
     id      = aws_launch_template.backend.id
     version = "$Latest"
   }
-  vpc_zone_identifier = local.private_subnet_ids
 
   instance_refresh {
     strategy = "Rolling"
@@ -128,45 +77,34 @@ resource "aws_autoscaling_group" "backend" {
     }
     triggers = ["launch_template"]
   }
-  
-  tag {
-    key                 = "Name"
-    value               = local.resource_name
-    propagate_at_launch = false
-  }
 
   timeouts {
     delete = "10m"
   }
 
   tag {
-    key                 = "Project"
-    value               = "web_app"
-    propagate_at_launch = false
-  }
-
-  tag {
-    key                 = "Environment"
-    value               = "dev"
-    propagate_at_launch = false
-  
+    key                 = "Name"
+    value               = "${local.resource_name}-asg"
+    propagate_at_launch = true
   }
 }
 
+# Scaling policy
 resource "aws_autoscaling_policy" "backend" {
-  name                   = local.resource_name
+  name                   = "${local.resource_name}-policy"
   policy_type            = "TargetTrackingScaling"
   autoscaling_group_name = aws_autoscaling_group.backend.name
+
   target_tracking_configuration {
     predefined_metric_specification {
       predefined_metric_type = "ASGAverageCPUUtilization"
     }
-
     target_value = 70.0
   }
 }
 
-resource "aws_lb_listener_rule" "backend" {
+# Listener rules
+resource "aws_lb_listener_rule" "backend_https" {
   listener_arn = local.app_alb_listener_arn
   priority     = 10
 
@@ -177,23 +115,23 @@ resource "aws_lb_listener_rule" "backend" {
 
   condition {
     host_header {
-      values = ["web_app-${var.environment}.${var.domain_name}"]
+      values = ["app-web-${var.environment}.${var.domain_name}"]
     }
   }
 }
 
-resource "aws_lb_listener_rule" "backend_http" {
-  listener_arn = local.app_alb_listener_arn_http
-  priority     = 10
+# resource "aws_lb_listener_rule" "backend_http" {
+#   listener_arn = local.app_alb_listener_arn_http
+#   priority     = 10
 
-  action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.backend.arn
-  }
+#   action {
+#     type             = "forward"
+#     target_group_arn = aws_lb_target_group.backend.arn
+#   }
 
-  condition {
-    host_header {
-      values = ["web_app-${var.environment}.${var.domain_name}"]
-    }
-  }
-}
+#   condition {
+#     host_header {
+#       values = ["app-web-${var.environment}.${var.domain_name}"]
+#     }
+#   }
+# }

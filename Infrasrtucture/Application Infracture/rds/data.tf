@@ -23,3 +23,4 @@ data "aws_ssm_parameter" "db_username" {
 data "aws_ssm_parameter" "db_name" {
     name = "/${var.project}/${var.environment}/db_name"
 }
+
