@@ -1,5 +1,5 @@
 deployment:
-  imageURL: 503561459301.dkr.ecr.us-east-1.amazonaws.com/roboshop/dev/shipping
-  imageVersion: IMAGE_VERSION
+  imageURL: lakshman143/flask-rds-app
+  imageVersion: Latest
 hpa:
   cpuUtilization: 20

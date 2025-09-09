@@ -1,10 +1,10 @@
-# k8s/service.yaml
 apiVersion: v1
 kind: Service
 metadata:
   name: webapp-service
+  namespace: web-app
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: webapp
   ports:

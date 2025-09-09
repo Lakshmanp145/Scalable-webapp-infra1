@@ -3,6 +3,7 @@ resource "aws_instance" "bastion" {
   instance_type          = "t3.micro"
   vpc_security_group_ids = [local.bastion_sg_id]
   subnet_id              = local.public_subnet_id
+  user_data = file("bastion.sh")
 
   root_block_device {
     volume_size = 50  # Set root volume size to 50GB

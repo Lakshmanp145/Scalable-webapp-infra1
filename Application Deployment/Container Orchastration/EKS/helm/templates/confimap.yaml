@@ -1,9 +1,9 @@
-# k8s/configmap.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: webapp-config
+  namespace: web-app
 data:
-  DB_HOST: mydb.xxxxxx.rds.amazonaws.com
-  DB_NAME: mydb
-  DB_USER: dbuser
+  DB_HOST: prod-postgre-rds.ctc6owuigkuq.us-east-1.rds.amazonaws.com
+  DB_NAME: transactions
+  DB_USER: postgres
